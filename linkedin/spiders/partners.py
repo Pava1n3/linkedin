@@ -19,6 +19,8 @@ class PartnerSpider(scrapy.Spider):
         ]
         for url in urls:
             yield scrapy.Request(url=url, callback=self.parse)
+        for curl in curls:
+            yield scrapy.Request(url=curl, callback=self.carouselParse)
         yield scrapy.Request(url='https://business.linkedin.com/talent-solutions/partners', callback=self.talentParse)
 
     def parse(self, response):
@@ -107,7 +109,7 @@ class PartnerSpider(scrapy.Spider):
                 f.write((key + ',"' + CompanyData[key] + '",Talent Solutions Partner,' + CompanyLogos[key] + "\n").encode("utf-8"))
         self.log('I crawled the talent solutions page!')
         
-    def nonListParse(self, response):
+    def carouselParse(self, response):
         filename = 'partnertable.csv'
         with open(filename, 'a') as f:           
             #Get the partnership type
@@ -117,7 +119,7 @@ class PartnerSpider(scrapy.Spider):
             CompanyNames = response.css('ul.list').css('li.logo-item').css('img').xpath('@alt').extract()
                               
             #Get the images associated with a company
-            ImageLinks = response.css('ul.list').css('li.logo-item').css('img').xpath('@img').extract()
+            ImageLinks = response.css('ul.list').css('li.logo-item').css('img').xpath('@src').extract()
             
             #write to the output files
             i = 0
