@@ -12,8 +12,8 @@ class PartnerSpider(scrapy.Spider):
             'https://business.linkedin.com/marketing-solutions/certified-marketing-partners/custom-apps-partners',
             'https://business.linkedin.com/marketing-solutions/certified-marketing-partners/compliance-partners',
         ]
-        nlurls = [
-            'https://developer.linkedin.com/partner-programs/talent#partners',
+        curls = [
+            'https://developer.linkedin.com/partner-programs/talent',
             'https://developer.linkedin.com/partner-programs/consumer',
             'https://developer.linkedin.com/partner-programs/sales',
         ]
@@ -32,14 +32,24 @@ class PartnerSpider(scrapy.Spider):
             CompanyLogos = {}
             
             #Get the type of partnership
-            PartnerTypeOutput = response.css('h2.component-section-headline::text').extract()
-            PartnerType = PartnerTypeOutput[0].replace("Explore our Certified ", "")
+            PartnerType = response.css('h2.component-section-headline::text').extract()[0].replace("Explore our ", "")
+            PartnerType.replace("Partners", "Partner")
         
             #Get the company names
-            CompanyNamesList = response.css('a.image-link::text').re(r'to (\w+)')
+            #CompanyNamesList = response.css('a.image-link::text').re(r'to (\w+)')
+            CompanyNamesList = response.css('p.resource-title.component-headline::text').extract()
+            if(len(CompanyNamesList) == 0):
+                CompanyNamesList = response.css('p.link-container').css('a::text').extract()
+                for name in CompanyNamesList:
+                    name.replace("Go to ", "").replace("\n", "")
             
             #Get the company descriptions
             CompanyDescriptionList = response.css('p.description.component-subheadline::text').extract()
+            
+            #catch a small error on the ads partner page
+            if(CompanyNamesList[0] == "4C Insights"):
+                CompanyDescriptionList.remove('\n')
+            
             dicIndex = 0;
             for CompanyDescription in CompanyDescriptionList:
                 CompanyData[CompanyNamesList[dicIndex]] = CompanyDescription
@@ -54,7 +64,8 @@ class PartnerSpider(scrapy.Spider):
                 
             #write the dics to the output file
             for key in CompanyData.keys():
-                f.write((key + ',"' + CompanyData[key] + '",' + PartnerType + ',' + CompanyLogos[key] + "\n").encode("utf-8"))
+                item = (key + ',"' + CompanyData[key] + '",' + PartnerType + ',' + CompanyLogos[key]).replace("\n", "")
+                f.write((item + "\n").encode("utf-8"))
             
         self.log('Saved file %s' % filename)
         
@@ -97,4 +108,21 @@ class PartnerSpider(scrapy.Spider):
         self.log('I crawled the talent solutions page!')
         
     def nonListParse(self, response):
-        i = 5
+        filename = 'partnertable.csv'
+        with open(filename, 'a') as f:           
+            #Get the partnership type
+            PartnerType = response.css('p.hero-headline::text').extract()[0].replace("ship Programs", "")
+            
+            #Get the company names
+            CompanyNames = response.css('ul.list').css('li.logo-item').css('img').xpath('@alt').extract()
+                              
+            #Get the images associated with a company
+            ImageLinks = response.css('ul.list').css('li.logo-item').css('img').xpath('@img').extract()
+            
+            #write to the output files
+            i = 0
+            while i < len(CompanyNames):
+                f.write(CompanyNames[i] + ',None given,' + PartnerType + ',' + ImageLinks[i] + "\n")
+                i += 1
+                
+        self.log('Saved file %s after crawling a carousel page' % filename)
